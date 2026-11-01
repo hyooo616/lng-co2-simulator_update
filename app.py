@@ -49,7 +49,7 @@ def compute(monthly, power, cold, disc, life, err, om, kau, inc_p201):
 # ------------------------------------------------------------------ ① 입력 패널
 sb = st.sidebar
 sb.header("① 조건 바꾸기")
-sb.caption("설계 기준(액화 7 barg, LNG 연 100만 t, 기존 방식 냉동 2단)은 숫자표 확정값으로 고정되어 있다.")
+sb.caption("설계 기준(액화 7 barg, LNG 연 100만 t, 기존 방식 냉동 2단)은 고정되어 있다.")
 power = sb.slider("전기요금 (원/kWh)", 140, 220, 180, step=5,
                   help="산업용(을) 대기업 182.7원(2024.10). 호남 지역요금 인하 시 최대 18원 낮아짐")
 cold = sb.slider("냉열 거래가 (원/t LNG)", 0, 30000, 0, step=1000)
@@ -86,7 +86,7 @@ st.caption(f"연계비 한도: 연계 배관·부지·인허가 등 아직 모�
            f"{life}년 동안 손해가 아니다(할인율 {disc*100:.1f}% 기준).")
 
 tab3, tab4, tab5, tab_op, tab_mc, tab6, tab7 = st.tabs(
-    ["③ 월별 냉열", "④ 냉열 거래가격", "⑤ 민감도", "운전 전략 비교", "불확실성", "공정 상세", "가정·출처"])
+    ["③ 월별 냉열", "④ 냉열 거래가격", "⑤ 민감도", "⑥운전 전략 비교", "⑦불확실성", "공정 상세", "가정·출처"])
 
 # ------------------------------------------------------------------ ③ 월별
 with tab3:
@@ -127,7 +127,7 @@ with tab4:
 # ------------------------------------------------------------------ ⑤ 민감도
 with tab5:
     base_gain = ind["lcol_baseline_krw_t"] - ind["lcol_lng_krw_t"]
-    cases = [                       # 숫자표 '몬테카를로 입력 범위'(10/26 확정)와 같은 범위
+    cases = [                       # 숫자표 '몬테카를로 입력 범위'와 같은 범위
         ("전기요금 160 ↔ 200원", dict(power=160), dict(power=200)),
         ("할인율 5 ↔ 10%", dict(disc=0.05), dict(disc=0.10)),
         ("설비 수명 15 ↔ 25년", dict(life=15), dict(life=25)),
@@ -157,7 +157,7 @@ with tab5:
 # ------------------------------------------------------------------ 운전 전략 비교
 with tab_op:
     strat = out["strategies"]
-    NAME = {"안 1": "안 1 · 여름 최저 설계", "안 2": "안 2 · 보조 냉동기 병행", "안 3": "안 3 · 처리량 감축"}
+    NAME = {"안 1": "1", "안 2": "2", "안 3": "3"}
     st.write("냉열이 모자란 달(주로 여름)에 어떻게 운전할지 세 가지를 비교한다. "
              "표의 비용은 모두 현재 왼쪽 입력(전기요금, 할인율, 수명, 설비비 오차, 배출권 가격 등)으로 계산한다.")
     tbl = pd.DataFrame([{
@@ -188,7 +188,7 @@ with tab_op:
     fig.update_layout(yaxis_title="만 t/월", height=420, legend=dict(orientation="h", y=-0.2),
                       margin=dict(t=30))
     st.plotly_chart(fig, use_container_width=True)
-    st.caption("계절 단위 저장으로 부족분을 메우는 안은 몇 달 치 CO₂나 냉열을 저장해야 해서 제외했다.")
+    st.caption("계절 단위 저장으로 부족분을 메우는 안은 몇 달 치 CO₂나 냉열을 저장해야 하므로 제외.")
 
 # ------------------------------------------------------------------ 불확실성
 with tab_mc:
@@ -199,10 +199,10 @@ with tab_mc:
         mc = load_mc(str(mc_path))
         n_mc, p_cheaper = len(mc), mc["cheaper"].mean()
         st.subheader(f"기존 방식보다 쌀 확률 {p_cheaper:.1%}")
-        st.write(f"확실하지 않은 입력 7개를 숫자표의 확정 범위 안에서 균등분포로 {n_mc:,}번 뽑아 계산했다(난수 시드 42). "
+        st.write(f"확실하지 않은 입력 7개를 확정 범위 안에서 균등분포로 {n_mc:,}번 뽑아 계산한다. "
                  f"냉열 방식 톤당 액화비는 중간값 {mc['lcol_lng'].median():,.0f}원/t, "
                  f"90% 구간 {mc['lcol_lng'].quantile(.05):,.0f}~{mc['lcol_lng'].quantile(.95):,.0f}원/t다. "
-                 "이 그림은 앱에서 다시 계산하지 않고 미리 계산한 결과 파일을 읽어서 보여 준다.")
+                 )
         fig = go.Figure()
         fig.add_histogram(x=mc["lcol_base"] / 1e4, nbinsx=60, name="기존 방식", marker_color=GREY, opacity=0.6)
         fig.add_histogram(x=mc["lcol_lng"] / 1e4, nbinsx=60, name="냉열 방식", marker_color=BLUE, opacity=0.8)
@@ -230,15 +230,13 @@ with tab_mc:
                             "기존 방식보다 쌀 확률": [f"{v:.1%}" for v in byp["mean"]],
                             "계산 횟수": byp["count"].values})
         st.dataframe(byp, use_container_width=True, hide_index=True)
-        st.caption("입력 범위(숫자표 10/26 확정, 모두 균등분포): 설비비 오차 ±30%, 전기요금 160~200원/kWh, "
+        st.caption("입력 범위: 설비비 오차 ±30%, 전기요금 160~200원/kWh, "
                    "냉열 거래가 0~18,400원/t LNG, 할인율 5~10%, 설비 수명 15~25년, 유지보수비 2~4%, "
-                   "월별 비율은 2016~2025 연도별 곡선 10개 중 1개. 숫자는 모두 팀 검증 전 [가정]이다.")
+                   "월별 비율은 2016~2025 연도별 곡선 10개 중 1개")
 
 # ------------------------------------------------------------------ 공정 상세
 with tab6:
     calc = out["calc"]
-    st.caption("값 출처: 숫자표(10/26) — DWSIM full_process.dwxmz(Peng-Robinson)와 경제성 엑셀 v3. "
-               "E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값이고, P201(LNG 펌프)은 기지 기존 설비라 제외했다.")
     st.subheader("전력 내역 (kWh/t CO₂)")
     st.table(pd.DataFrame({
         "항목": ["CO₂ 압축", "냉각·액화(냉동기)", "여름 보조 냉동기", "열매체·LNG 펌프", "기타 보조", "합계"],
@@ -272,7 +270,7 @@ with tab6:
 # ------------------------------------------------------------------ 가정·출처
 with tab7:
     st.markdown(r"""
-- 계산 기준(팀 확정값): DWSIM full_process.dwxmz(Peng-Robinson) 장비 크기 + 경제성 엑셀 v3. 숫자표 10/26과 같은 값이다. E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값, P201(LNG 펌프)은 기지 기존 설비라 제외
+- 계산 기준: DWSIM full_process.dwxmz(Peng-Robinson) 장비 크기 + 경제성 엑셀 v3. E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값, P201(LNG 펌프)은 기지 기존 설비라 제외
 - 물성(기준값 계산): CoolProp(CO₂ Span-Wagner, 메탄 Setzmann-Wagner, 에탄 Buecker-Wagner 기준식)
 - 설비비: Turton, *Analysis, Synthesis and Design of Chemical Processes* 부록 A 상관식 (CEPCI 397 → 800 환산). 계수는 키트 값이고 교재 원문 대조는 하지 않았다(10/22 팀 결정)
 - CEPCI: 2023 연평균 797.9 (Chemical Engineering, 2024.3.25). 2025는 2024 대비 +1.6%
