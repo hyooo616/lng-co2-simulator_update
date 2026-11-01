@@ -2,9 +2,7 @@
 LNG 냉열 CO2 액화 시뮬레이터 (Streamlit)
 
 실행:  streamlit run app.py
-계산은 두 가지 중에서 고른다.
-  - 팀 확정값(기본): lngco2/team.py → econ_model.py. DWSIM 장비 크기 + 경제성 엑셀 v3. 숫자표와 같은 값.
-  - 간이 모델: lngco2/calc.py(공정)와 lngco2/econ.py(경제성). CoolProp 간이 계산. 압력·설계 기준을 바꿔 볼 때 쓴다.
+계산은 lngco2/team.py → econ_model.py가 한다(DWSIM 장비 크기 + 경제성 엑셀 v3, 숫자표와 같은 값).
 이 파일은 화면만 그린다.
 """
 from pathlib import Path
@@ -13,9 +11,9 @@ import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
 
-from lngco2 import team
-from lngco2.calc import Basis, DEFAULT_MONTHLY
-from lngco2.econ import Econ, evaluate
+from lngco2 import econ_model, team
+
+DEFAULT_MONTHLY = econ_model.BASE["monthly"]      # 가스공사 2023~2025 평균(숫자표 10/26)
 
 st.set_page_config(page_title="LNG 냉열 CO₂ 액화 시뮬레이터", layout="wide")
 
@@ -44,28 +42,14 @@ def load_mc(path: str) -> pd.DataFrame:
 
 
 @st.cache_data(show_spinner=False)
-def compute(team_mode, lng_tpy, p_barg, design, refrig, monthly, power, cold, disc, life, err, eta_c, loss,
-            om, kau, inc_p201):
-    if team_mode:       # 팀 확정값: 설계 규모(7 barg, LNG 100만 t)는 고정이라 lng_tpy~loss는 쓰지 않는다
-        return team.evaluate_team(monthly, power, cold, disc, life, err, om, kau, inc_p201)
-    b = Basis(lng_tpy=lng_tpy, p_liq_barg=p_barg, design_basis=design, refrig_mode=refrig,
-              monthly=monthly, eta_carnot=eta_c, loop_loss=loss)
-    e = Econ(power_price=power, cold_price=cold, discount=disc, life_y=life, capex_err=err, om_frac=om)
-    return evaluate(b, e)
+def compute(monthly, power, cold, disc, life, err, om, kau, inc_p201):
+    return team.evaluate_team(monthly, power, cold, disc, life, err, om, kau, inc_p201)
 
 
 # ------------------------------------------------------------------ ① 입력 패널
 sb = st.sidebar
 sb.header("① 조건 바꾸기")
-mode_label = sb.radio("계산 기준", ["팀 확정값 (DWSIM + 경제성 v3)", "간이 모델 (키트: 압력·설계 기준 탐색용)"],
-                      help="팀 확정값: 숫자표와 같은 값. 7 barg, LNG 연 100만 t로 고정되어 회색 입력은 바꿀 수 없다. "
-                           "간이 모델: CoolProp 간이 계산이라 압력·설계 기준을 바꿀 수 있지만 숫자표와 값이 조금 다르다.")
-team_mode = mode_label.startswith("팀")
-lng_man = sb.slider("LNG 냉열 사용량 (만 t/년)", 20, 300, 100, step=10, disabled=team_mode,
-                    help="광양 터미널 연간 처리 능력 약 300만 t 중 얼마를 쓸지")
-p_label = sb.radio("액화 압력", ["7 barg (저압 운송)", "15 barg (중압 운송)"], disabled=team_mode)
-design_label = sb.radio("설계 기준", ["연평균", "여름 최저"], disabled=team_mode,
-                        help="연평균: 처리량 최대, 여름엔 보조 냉동기 가동 / 여름 최저: 보조 냉동기 거의 불필요")
+sb.caption("설계 기준(액화 7 barg, LNG 연 100만 t, 기존 방식 냉동 2단)은 숫자표 확정값으로 고정되어 있다.")
 power = sb.slider("전기요금 (원/kWh)", 140, 220, 180, step=5,
                   help="산업용(을) 대기업 182.7원(2024.10). 호남 지역요금 인하 시 최대 18원 낮아짐")
 cold = sb.slider("냉열 거래가 (원/t LNG)", 0, 30000, 0, step=1000)
@@ -74,28 +58,21 @@ life = sb.slider("설비 수명 (년)", 10, 30, 20)
 err = sb.slider("설비비 오차 (%)", -30, 30, 0, step=5) / 100
 om = sb.slider("유지보수비 (설비비의 %/년)", 1.0, 5.0, 3.0, step=0.5) / 100
 with sb.expander("고급 설정"):
-    refrig_label = st.radio("기존 방식 냉동기", ["2단(공정한 비교)", "1단"], disabled=team_mode)
-    eta_c = st.slider("냉동기 성능 (이론 대비)", 0.35, 0.65, 0.50, step=0.05, disabled=team_mode)
-    loss = st.slider("열매체 루프 손실", 0.0, 0.15, 0.05, step=0.01, disabled=team_mode)
     kau = st.number_input("배출권 가격 (원/t, 운전 전략 안 1·3의 미처리 CO₂ 비용)", value=26450, step=1000)
-    inc_p201 = st.checkbox("기지 LNG 펌프(P201) 비용·전력 포함", value=False, disabled=not team_mode,
+    inc_p201 = st.checkbox("기지 LNG 펌프(P201) 비용·전력 포함", value=False,
                            help="팀 확정: 제외(기지 기존 설비, 10/22). 포함하면 전력과 설비비가 늘어난다.")
     up = st.file_uploader("월별 송출 비율 CSV", type="csv",
                           help="tools/kogas_csv_to_profile.py 로 만든 파일. 12개 값")
 
 monthly, profile_src = load_profile(up)
-p_barg = 7.0 if p_label.startswith("7") else 15.0
-design = "annual" if design_label == "연평균" else "summer"
-refrig = "two_level" if refrig_label.startswith("2") else "single"
 
-out = compute(team_mode, lng_man * 1e4, p_barg, design, refrig, monthly, power, cold, disc, life, err,
-              eta_c, loss, om, kau, inc_p201)
+out = compute(monthly, power, cold, disc, life, err, om, kau, inc_p201)
 s, ind = out["calc"]["summary"], out["indicators"]
 
 # ------------------------------------------------------------------ ② 결과 카드
 st.title("LNG 냉열로 CO₂ 액화하기: 얼마나 아끼나")
 st.caption(f"CO₂ 처리량 {s['co2_tpy']/1e4:,.0f}만 t/년 · LNG 1t당 CO₂ {s['co2_per_lng']:.2f}t · "
-           f"월별 송출 비율: {profile_src} · 계산 기준: {'팀 확정값(숫자표)' if team_mode else '간이 모델(키트)'}")
+           f"월별 송출 비율: {profile_src} · 계산 기준: 팀 확정값(숫자표)")
 c1, c2, c3, c4 = st.columns(4)
 c1.metric("톤당 액화 전력", f"{s['lng_total_kWh_t']:.0f} kWh/t",
           f"-{s['saving_pct']:.0f}% (기존 {s['baseline_total_kWh_t']:.0f})", delta_color="inverse")
@@ -150,27 +127,16 @@ with tab4:
 # ------------------------------------------------------------------ ⑤ 민감도
 with tab5:
     base_gain = ind["lcol_baseline_krw_t"] - ind["lcol_lng_krw_t"]
-    if team_mode:       # 숫자표 '몬테카를로 입력 범위'(10/26 확정)와 같은 범위
-        cases = [
-            ("전기요금 160 ↔ 200원", dict(power=160), dict(power=200)),
-            ("할인율 5 ↔ 10%", dict(disc=0.05), dict(disc=0.10)),
-            ("설비 수명 15 ↔ 25년", dict(life=15), dict(life=25)),
-            ("유지보수비 2 ↔ 4%", dict(om=0.02), dict(om=0.04)),
-            ("설비비 -30 ↔ +30%", dict(err=-0.3), dict(err=0.3)),
-            ("냉열 거래가 0 ↔ 1.84만 원", dict(cold=0), dict(cold=18400)),
-        ]
-    else:
-        cases = [
-            ("전기요금 150 ↔ 210원", dict(power=150), dict(power=210)),
-            ("할인율 5 ↔ 10%", dict(disc=0.05), dict(disc=0.10)),
-            ("설비비 -30 ↔ +30%", dict(err=-0.3), dict(err=0.3)),
-            ("냉동기 성능 0.45 ↔ 0.55", dict(eta_c=0.45), dict(eta_c=0.55)),
-            ("루프 손실 2 ↔ 10%", dict(loss=0.02), dict(loss=0.10)),
-            ("냉열 거래가 0 ↔ 1.5만 원", dict(cold=0), dict(cold=15000)),
-        ]
-    args = dict(team_mode=team_mode, lng_tpy=lng_man * 1e4, p_barg=p_barg, design=design, refrig=refrig,
-                monthly=monthly, power=power, cold=cold, disc=disc, life=life, err=err, eta_c=eta_c, loss=loss,
-                om=om, kau=kau, inc_p201=inc_p201)
+    cases = [                       # 숫자표 '몬테카를로 입력 범위'(10/26 확정)와 같은 범위
+        ("전기요금 160 ↔ 200원", dict(power=160), dict(power=200)),
+        ("할인율 5 ↔ 10%", dict(disc=0.05), dict(disc=0.10)),
+        ("설비 수명 15 ↔ 25년", dict(life=15), dict(life=25)),
+        ("유지보수비 2 ↔ 4%", dict(om=0.02), dict(om=0.04)),
+        ("설비비 -30 ↔ +30%", dict(err=-0.3), dict(err=0.3)),
+        ("냉열 거래가 0 ↔ 1.84만 원", dict(cold=0), dict(cold=18400)),
+    ]
+    args = dict(monthly=monthly, power=power, cold=cold, disc=disc, life=life, err=err, om=om, kau=kau,
+                inc_p201=inc_p201)
     bars = []
     for label, lo, hi in cases:
         vals = []
@@ -190,41 +156,39 @@ with tab5:
 
 # ------------------------------------------------------------------ 운전 전략 비교
 with tab_op:
-    if not team_mode:
-        st.info("운전 전략 비교는 '팀 확정값' 기준에서만 보여 준다. 왼쪽 위 '계산 기준'을 바꿔 주세요.")
-    else:
-        strat = out["strategies"]
-        st.write("냉열이 모자란 달(주로 여름)에 어떻게 운전할지 세 가지를 비교한다. "
-                 "표의 비용은 모두 현재 왼쪽 입력(전기요금, 할인율, 수명, 설비비 오차, 배출권 가격 등)으로 계산한다.")
-        tbl = pd.DataFrame([{
-            "안": x["안"], "운전 방식": x["내용"],
-            "연간 처리량(만 t)": round(x["처리량_t"] / 1e4, 1),
-            "처리 못 하는 CO₂(만 t)": round(x["미처리_t"] / 1e4, 1),
-            "설비비(억 원)": round(x["설비비_억"]),
-            "연간 비용(억 원/년)": round(x["연간비용_억"], 1),
-            "톤당 비용(원/t)": round(x["톤당비용"]),
-            "실효 톤당 비용(원/t)": round(x["실효비용"]),
-        } for x in strat])
-        st.dataframe(tbl, use_container_width=True, hide_index=True)
-        best = min(strat, key=lambda x: x["실효비용"])
-        st.write(f"전기요금 {power}원/kWh, 배출권 {kau:,.0f}원/t 조건에서는 **{best['안']}**의 실효 톤당 비용이 "
-                 f"가장 낮다({best['실효비용']:,.0f}원/t).")
-        st.caption(f"실효 톤당 비용 = (연간 비용 + 처리 못 한 CO₂ × 배출권 가격) ÷ 목표 처리량 {s['co2_tpy']/1e4:,.1f}만 t. "
-                   "안 1·3은 처리 못 한 CO₂를 배출권 가격으로 환산해 더해야 안 2와 공정하게 비교된다.")
-        mrows = pd.DataFrame(out["calc"]["monthly"]["rows"])
-        cap, need = mrows["capacity_co2_t"], mrows["load_co2_t"]
-        fig = go.Figure()
-        fig.add_bar(x=MONTHS, y=cap / 1e4, name="그 달 냉열로 처리 가능한 CO₂", marker_color=LIGHT)
-        fig.add_scatter(x=MONTHS, y=[strat[0]["처리량_t"] / 12 / 1e4] * 12, name="안 1 처리량",
-                        mode="lines+markers", line=dict(color=GREY, width=3))
-        fig.add_scatter(x=MONTHS, y=need / 1e4, name="안 2 처리량(전량)", mode="lines+markers",
-                        line=dict(color=BLUE, width=3))
-        fig.add_scatter(x=MONTHS, y=[min(c, n) / 1e4 for c, n in zip(cap, need)], name="안 3 처리량",
-                        mode="lines+markers", line=dict(color=RED, width=3, dash="dash"))
-        fig.update_layout(yaxis_title="만 t/월", height=420, legend=dict(orientation="h", y=-0.2),
-                          margin=dict(t=30))
-        st.plotly_chart(fig, use_container_width=True)
-        st.caption("계절 단위 저장으로 부족분을 메우는 안은 몇 달 치 CO₂나 냉열을 저장해야 해서 제외했다.")
+    strat = out["strategies"]
+    NAME = {"안 1": "안 1 · 여름 최저 설계", "안 2": "안 2 · 보조 냉동기 병행", "안 3": "안 3 · 처리량 감축"}
+    st.write("냉열이 모자란 달(주로 여름)에 어떻게 운전할지 세 가지를 비교한다. "
+             "표의 비용은 모두 현재 왼쪽 입력(전기요금, 할인율, 수명, 설비비 오차, 배출권 가격 등)으로 계산한다.")
+    tbl = pd.DataFrame([{
+        "안": NAME[x["안"]], "운전 방식": x["내용"],
+        "연간 처리량(만 t)": round(x["처리량_t"] / 1e4, 1),
+        "처리 못 하는 CO₂(만 t)": round(x["미처리_t"] / 1e4, 1),
+        "설비비(억 원)": round(x["설비비_억"]),
+        "연간 비용(억 원/년)": round(x["연간비용_억"], 1),
+        "톤당 비용(원/t)": round(x["톤당비용"]),
+        "실효 톤당 비용(원/t)": round(x["실효비용"]),
+    } for x in strat])
+    st.dataframe(tbl, use_container_width=True, hide_index=True)
+    best = min(strat, key=lambda x: x["실효비용"])
+    st.write(f"전기요금 {power}원/kWh, 배출권 {kau:,.0f}원/t 조건에서는 **{NAME[best['안']]}**의 실효 톤당 비용이 "
+             f"가장 낮다({best['실효비용']:,.0f}원/t).")
+    st.caption(f"실효 톤당 비용 = (연간 비용 + 처리 못 한 CO₂ × 배출권 가격) ÷ 목표 처리량 {s['co2_tpy']/1e4:,.1f}만 t. "
+               "안 1·3은 처리 못 한 CO₂를 배출권 가격으로 환산해 더해야 안 2와 공정하게 비교된다.")
+    mrows = pd.DataFrame(out["calc"]["monthly"]["rows"])
+    cap, need = mrows["capacity_co2_t"], mrows["load_co2_t"]
+    fig = go.Figure()
+    fig.add_bar(x=MONTHS, y=cap / 1e4, name="그 달 냉열로 처리 가능한 CO₂", marker_color=LIGHT)
+    fig.add_scatter(x=MONTHS, y=[strat[0]["처리량_t"] / 12 / 1e4] * 12, name=f"{NAME['안 1']} 처리량",
+                    mode="lines+markers", line=dict(color=GREY, width=3))
+    fig.add_scatter(x=MONTHS, y=need / 1e4, name=f"{NAME['안 2']} 처리량(전량)", mode="lines+markers",
+                    line=dict(color=BLUE, width=3))
+    fig.add_scatter(x=MONTHS, y=[min(c, n) / 1e4 for c, n in zip(cap, need)], name=f"{NAME['안 3']} 처리량",
+                    mode="lines+markers", line=dict(color=RED, width=3, dash="dash"))
+    fig.update_layout(yaxis_title="만 t/월", height=420, legend=dict(orientation="h", y=-0.2),
+                      margin=dict(t=30))
+    st.plotly_chart(fig, use_container_width=True)
+    st.caption("계절 단위 저장으로 부족분을 메우는 안은 몇 달 치 CO₂나 냉열을 저장해야 해서 제외했다.")
 
 # ------------------------------------------------------------------ 불확실성
 with tab_mc:
@@ -273,9 +237,8 @@ with tab_mc:
 # ------------------------------------------------------------------ 공정 상세
 with tab6:
     calc = out["calc"]
-    if team_mode:
-        st.caption("값 출처: 숫자표(10/26) — DWSIM full_process.dwxmz(Peng-Robinson)와 경제성 엑셀 v3. "
-                   "E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값이고, P201(LNG 펌프)은 기지 기존 설비라 제외했다.")
+    st.caption("값 출처: 숫자표(10/26) — DWSIM full_process.dwxmz(Peng-Robinson)와 경제성 엑셀 v3. "
+               "E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값이고, P201(LNG 펌프)은 기지 기존 설비라 제외했다.")
     st.subheader("전력 내역 (kWh/t CO₂)")
     st.table(pd.DataFrame({
         "항목": ["CO₂ 압축", "냉각·액화(냉동기)", "여름 보조 냉동기", "열매체·LNG 펌프", "기타 보조", "합계"],
@@ -310,7 +273,7 @@ with tab6:
 with tab7:
     st.markdown(r"""
 - 계산 기준(팀 확정값): DWSIM full_process.dwxmz(Peng-Robinson) 장비 크기 + 경제성 엑셀 v3. 숫자표 10/26과 같은 값이다. E-201 U=600, E-202 U=500 W/m²K는 상세 설계 검증 전 예비값, P201(LNG 펌프)은 기지 기존 설비라 제외
-- 물성(간이 모델·기준값): CoolProp(CO₂ Span-Wagner, 메탄 Setzmann-Wagner, 에탄 Buecker-Wagner 기준식)
+- 물성(기준값 계산): CoolProp(CO₂ Span-Wagner, 메탄 Setzmann-Wagner, 에탄 Buecker-Wagner 기준식)
 - 설비비: Turton, *Analysis, Synthesis and Design of Chemical Processes* 부록 A 상관식 (CEPCI 397 → 800 환산). 계수는 키트 값이고 교재 원문 대조는 하지 않았다(10/22 팀 결정)
 - CEPCI: 2023 연평균 797.9 (Chemical Engineering, 2024.3.25). 2025는 2024 대비 +1.6%
 - 환율: 1,345.75원/달러 (2026.10.2) → 1,350원 사용
