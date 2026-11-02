@@ -93,24 +93,7 @@ if limit_eok >= 0:
     st.caption(f"연계비 한도: 연계 배관·부지·인허가 등 아직 모르는 추가비를 이 금액까지 써도 "
                f"{life}년 동안 손해가 아니다(할인율 {disc*100:.1f}% 기준).")
 else:
-    c4.metric("연계비 한도", "없음", delta_color="off")
-    c4.markdown(
-        """
-        <div style="
-            background-color: rgba(128, 128, 128, 0.15);
-            color: #808080;
-            padding: 4px 8px;
-            border-radius: 20px;
-            line-height: 1.5;
-            width: 100%;
-            box-sizing: border-box;
-        ">
-            ↑ 추가 연계비가 없어도<br>
-            기존 방식보다 불리함
-        </div>
-        """,
-        unsafe_allow_html=True
-    )
+    c4.metric("연계비 한도", "없음", "추가 연계비가 없어도 기존 방식보다 불리함", delta_color="off")
     st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
                f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
     
