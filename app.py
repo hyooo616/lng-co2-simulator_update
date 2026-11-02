@@ -212,7 +212,7 @@ with tab_mc:
         n_mc, p_cheaper = len(mc), mc["cheaper"].mean()
         st.subheader(f"기존 방식보다 쌀 확률 {p_cheaper:.1%}")
         st.info("이 확률은 기존 순수 메탄 기준안(순수 CO₂·순수 메탄, 7 barg, LNG 연 100만 t, DWSIM 장비 크기)에서 "
-                "아래에 적은 입력 범위로 미리 계산한 결과이며, 왼쪽 입력값과는 별도다. 왼쪽 입력을 바꿔도 이 확률은 "
+                "아래에 적은 입력 범위로 미리 계산한 결과이며, 왼쪽 입력값과는 별도다. 왼쪽 입력값을 바꿔도 이 확률은 "
                 "달라지지 않고, 실제 LNG 조성과 N₂ 불순물도 반영하지 않는다.")
         st.write(f"확실하지 않은 입력 8개(배출권 가격은 운전 전략 안 1·3에만 쓰여 이 확률에는 영향이 없다)를 확정 범위 안에서 균등분포로 {n_mc:,}번 뽑아 계산했다. "
                  f"냉열 방식 톤당 액화비는 중간값 {mc['lcol_lng'].median():,.0f}원/t, "
@@ -358,7 +358,7 @@ with tab7:
     st.markdown(r"""
 - 계산 기준: DWSIM full_process.dwxmz(Peng-Robinson) 장비 크기
 - 물성: CoolProp(CO₂ Span-Wagner, 메탄 Setzmann-Wagner, 에탄 Buecker-Wagner 기준식)
-- 설비비: Turton, *Analysis, Synthesis and Design of Chemical Processes* 부록 A 상관식 (CEPCI 397 → 800 환산). 계수는 키트 값이고 교재 원문 대조는 하지 않았다.
+- 설비비: Turton, *Analysis, Synthesis and Design of Chemical Processes* 부록 A 상관식 (CEPCI 397 → 800 환산).
 - CEPCI: 2023 연평균 797.9 (Chemical Engineering, 2024.3.25). 2025는 2024 대비 +1.6%
 - 환율: 1,345.75원/달러 (2026.10.2) → 1,350원 사용
 - 전기요금: 산업용(을) 대기업 182.7원/kWh (2024.10.24 인상 후, S&P Global 2024.10.23)
