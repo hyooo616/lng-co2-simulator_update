@@ -13,7 +13,7 @@ import streamlit as st
 
 from lngco2 import econ_model, team
 
-DEFAULT_MONTHLY = econ_model.BASE["monthly"]      # 가스공사 2023~2025 평균(숫자표 10/26)
+DEFAULT_MONTHLY = econ_model.BASE["monthly"]      # 가스공사 2023~2025 평균
 
 st.set_page_config(page_title="LNG 냉열 CO₂ 액화 시뮬레이터", layout="wide")
 
@@ -94,7 +94,27 @@ if limit_eok >= 0:
                f"{life}년 동안 손해가 아니다(할인율 {disc*100:.1f}% 기준).")
 else:
     c4.metric("연계비 한도", "없음", delta_color="off")
-    c4.caption("추가 연계비가 없어도 기존 방식보다 불리함")
+    else:
+    c4.metric("연계비 한도", "없음", delta_color="off")
+    c4.markdown(
+        """
+        <div style="
+            background-color: rgba(128, 128, 128, 0.15);
+            color: #808080;
+            padding: 4px 8px;
+            border-radius: 20px;
+            line-height: 1.5;
+            width: 100%;
+            box-sizing: border-box;
+        ">
+            ↑ 추가 연계비가 없어도<br>
+            기존 방식보다 불리함
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+    st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
+               f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
     st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
                f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
     
