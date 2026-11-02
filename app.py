@@ -113,8 +113,6 @@ else:
     )
     st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
                f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
-    st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
-               f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
     
 tab3, tab4, tab5, tab_op, tab_mc, tab_imp, tab6, tab7 = st.tabs(
     ["③ 월별 냉열", "④ 냉열 거래가격", "⑤ 민감도", "⑥운전 전략 비교", "⑦불확실성", "⑧실제 조성·불순물", "공정 상세", "가정·출처"])
