@@ -93,10 +93,11 @@ if limit_eok >= 0:
     st.caption(f"연계비 한도: 연계 배관·부지·인허가 등 아직 모르는 추가비를 이 금액까지 써도 "
                f"{life}년 동안 손해가 아니다(할인율 {disc*100:.1f}% 기준).")
 else:
-    c4.metric("연계비 한도", "없음", "추가 연계비가 없어도 기존 방식보다 불리함", delta_color="off")
+    c4.metric("연계비 한도", "없음", delta_color="off")
+    c4.caption("추가 연계비가 없어도 기존 방식보다 불리함")
     st.caption(f"연계비 한도가 음수({limit_eok:,.0f}억 원)다. 연계 배관·부지·인허가 등 추가 비용이 0원이어도 "
                f"{life}년 NPV가 기존 방식보다 {abs(limit_eok):,.0f}억 원 낮다(할인율 {disc*100:.1f}% 기준).")
-
+    
 tab3, tab4, tab5, tab_op, tab_mc, tab_imp, tab6, tab7 = st.tabs(
     ["③ 월별 냉열", "④ 냉열 거래가격", "⑤ 민감도", "⑥운전 전략 비교", "⑦불확실성", "⑧실제 조성·불순물", "공정 상세", "가정·출처"])
 
