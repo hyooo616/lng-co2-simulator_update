@@ -94,8 +94,6 @@ if limit_eok >= 0:
                f"{life}년 동안 손해가 아니다(할인율 {disc*100:.1f}% 기준).")
 else:
     c4.metric("연계비 한도", "없음", delta_color="off")
-    else:
-    c4.metric("연계비 한도", "없음", delta_color="off")
     c4.markdown(
         """
         <div style="
