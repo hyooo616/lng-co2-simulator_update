@@ -229,12 +229,12 @@ with tab_mc:
         n_mc, p_cheaper = len(mc), mc["cheaper"].mean()
         st.subheader(f"기존 방식보다 쌀 확률 {p_cheaper:.1%}")
         st.info("이 확률은 기존 순수 메탄 기준안(순수 CO₂·순수 메탄, 7 barg, LNG 연 100만 t, DWSIM 장비 크기)에서 "
-                "아래에 적은 입력 범위로 미리 계산한 결과이며, 왼쪽 입력값과는 별도다. 왼쪽 입력값을 바꿔도 이 확률은 "
-                "달라지지 않고, 실제 LNG 조성과 N₂ 불순물도 반영하지 않는다.")
-        st.write(f"확실하지 않은 입력 8개(배출권 가격은 운전 전략 안 1·3에만 쓰여 이 확률에는 영향이 없다)를 확정 범위 안에서 균등분포로 {n_mc:,}번 뽑아 계산했다. "
+                "아래에 적은 입력 범위로 미리 계산한 결과이며, 왼쪽 입력값을 바꿔도 이 확률은 "
+                "달라지지 않는다. 또한, 실제 LNG 조성과 N₂ 불순물도 반영하지 않는다.")
+        st.write(f"설비비 오차, 전기요금, 냉열 거래가, 할인율, 설비 수명, 유지보수비, 월별 송출 비율, 배출권 가격 등 입력 8개(배출권 가격은 운전 전략 안 1·3에만 쓰여 이 확률에는 영향이 없다)를 확정 범위 안에서 균등분포로 {n_mc:,}번 뽑아 계산했다. "
                  f"냉열 방식 톤당 액화비는 중간값 {mc['lcol_lng'].median():,.0f}원/t, "
                  f"90% 구간 {mc['lcol_lng'].quantile(.05):,.0f}~{mc['lcol_lng'].quantile(.95):,.0f}원/t다. "
-                 "이 그림은 미리 계산한 결과 파일을 보여 준다.")
+                 "이 그림은 미리 계산한 결과를 보여 준다.")
         fig = go.Figure()
         fig.add_histogram(x=mc["lcol_base"] / 1e4, nbinsx=60, name="기존 방식", marker_color=GREY, opacity=0.6)
         fig.add_histogram(x=mc["lcol_lng"] / 1e4, nbinsx=60, name="냉열 방식", marker_color=BLUE, opacity=0.8)
